@@ -60,6 +60,7 @@ The system evaluates all preprocessing modes and selects the one with the highes
 
 ## Project Structure
 
+```
 automatic-answer-sheet-digitizer/
 │
 ├── src/
@@ -71,6 +72,7 @@ automatic-answer-sheet-digitizer/
 ├── uploads/
 ├── requirements.txt
 └── README.md
+```
 
 ---
 
