@@ -1,18 +1,23 @@
+"""
+OCR Engine Module
+Handles preprocessing + OCR + adaptive selection.
+"""
+
 import cv2
-import numpy as np
 import pytesseract
 from pytesseract import Output
 
 
-def preprocess_mode_1(image):
-    # Grayscale + Gaussian Blur
+# -------------------------------
+# PREPROCESSING MODES
+# -------------------------------
+
+def preprocess_blur(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    return blur
+    return cv2.GaussianBlur(gray, (5, 5), 0)
 
 
-def preprocess_mode_2(image):
-    # Grayscale + Otsu threshold
+def preprocess_otsu(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(
         gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
@@ -20,10 +25,9 @@ def preprocess_mode_2(image):
     return thresh
 
 
-def preprocess_mode_3(image):
-    # Grayscale + Adaptive threshold
+def preprocess_adaptive(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    adaptive = cv2.adaptiveThreshold(
+    return cv2.adaptiveThreshold(
         gray,
         255,
         cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
@@ -31,8 +35,11 @@ def preprocess_mode_3(image):
         11,
         2
     )
-    return adaptive
 
+
+# -------------------------------
+# OCR FUNCTION
+# -------------------------------
 
 def perform_ocr(image):
     data = pytesseract.image_to_data(
@@ -46,7 +53,11 @@ def perform_ocr(image):
 
     for i in range(len(data["text"])):
         word = data["text"][i].strip()
-        conf = int(data["conf"][i])
+
+        try:
+            conf = int(data["conf"][i])
+        except:
+            conf = -1
 
         if word != "" and conf > 0:
             text += word + " "
@@ -59,20 +70,16 @@ def perform_ocr(image):
     return text.strip(), round(avg_conf, 2)
 
 
-def main():
-    image_path = "../samples/sample_input.jpg"
-    original = cv2.imread(image_path)
+# -------------------------------
+# ADAPTIVE PIPELINE
+# -------------------------------
 
-    if original is None:
-        print("Image not found.")
-        return
-
-    print("Running Adaptive OCR Pipeline...\n")
+def adaptive_ocr(image):
 
     modes = {
-        "Mode 1 (Blur)": preprocess_mode_1(original),
-        "Mode 2 (Otsu)": preprocess_mode_2(original),
-        "Mode 3 (Adaptive)": preprocess_mode_3(original)
+        "Blur": preprocess_blur(image),
+        "Otsu": preprocess_otsu(image),
+        "Adaptive Threshold": preprocess_adaptive(image)
     }
 
     best_conf = 0
@@ -81,19 +88,10 @@ def main():
 
     for mode_name, processed in modes.items():
         text, conf = perform_ocr(processed)
-        print(f"{mode_name} Confidence: {conf}%")
 
         if conf > best_conf:
             best_conf = conf
             best_text = text
             best_mode = mode_name
 
-    print("\n--- BEST RESULT ---")
-    print("Selected:", best_mode)
-    print("Confidence:", best_conf, "%")
-    print("\nExtracted Text:\n")
-    print(best_text)
-
-
-if __name__ == "__main__":
-    main()
+    return best_text, best_conf, best_mode
