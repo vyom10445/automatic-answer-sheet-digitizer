@@ -1,36 +1,26 @@
 import cv2
 import numpy as np
-import os
+import pytesseract
+from pytesseract import Output
 
-# STEP 1: Load Image
-def load_image(path):
 
+# PREPROCESSING PIPELINE
+
+def preprocess_image(path):
     image = cv2.imread(path)
+
     if image is None:
-        raise FileNotFoundError(f"Image not found at path: {path}")
-    return image
+        raise FileNotFoundError("Image not found.")
 
-# STEP 2: Convert to Grayscale
-def convert_to_grayscale(image):
+    # Convert to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # Noise reduction
+    blur = cv2.GaussianBlur(gray, (5, 5), 0)
 
-
-
-# STEP 3: Noise Reduction
-
-def remove_noise(gray_image):
-
-    return cv2.GaussianBlur(gray_image, (5, 5), 0)
-
-
-
-# STEP 4: Adaptive Thresholding
-
-def apply_threshold(blurred_image):
-
-    return cv2.adaptiveThreshold(
-        blurred_image,
+    # Adaptive threshold
+    thresh = cv2.adaptiveThreshold(
+        blur,
         255,
         cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
         cv2.THRESH_BINARY,
@@ -38,80 +28,63 @@ def apply_threshold(blurred_image):
         2
     )
 
+    return thresh
 
 
-# STEP 5: Automatic Deskew
+# OCR WITH CONFIDENCE
 
-def deskew(image):
-
-    # Get coordinates of all non-zero pixels
-    coords = np.column_stack(np.where(image > 0))
-
-    # Determine minimum area rectangle
-    angle = cv2.minAreaRect(coords)[-1]
-
-    # Adjust angle
-    if angle < -45:
-        angle = -(90 + angle)
-    else:
-        angle = -angle
-
-    # Get image dimensions
-    (h, w) = image.shape[:2]
-    center = (w // 2, h // 2)
-
-    # Compute rotation matrix
-    M = cv2.getRotationMatrix2D(center, angle, 1.0)
-
-    # Rotate image
-    rotated = cv2.warpAffine(
+def perform_ocr(image):
+    data = pytesseract.image_to_data(
         image,
-        M,
-        (w, h),
-        flags=cv2.INTER_CUBIC,
-        borderMode=cv2.BORDER_REPLICATE
+        output_type=Output.DICT,
+        config='--psm 6'
     )
 
-    return rotated
+    extracted_text = ""
+    confidences = []
+
+    for i in range(len(data["text"])):
+        word = data["text"][i].strip()
+        conf = int(data["conf"][i])
+
+        if word != "":
+            extracted_text += word + " "
+            confidences.append(conf)
+
+    return extracted_text.strip(), confidences
 
 
+# CONFIDENCE ANALYSIS
 
-# STEP 6: Save Processed Image
+def calculate_average_confidence(confidences):
+    if len(confidences) == 0:
+        return 0
 
-def save_image(output_path, image):
-
-    cv2.imwrite(output_path, image)
+    return round(sum(confidences) / len(confidences), 2)
 
 
-
-# MAIN EXECUTION PIPELINE
+# MAIN EXECUTION
 
 def main():
 
-    # Define paths
-    input_path = "../samples/sample_input.jpg"
-    output_path = "../samples/processed_output.jpg"
+    image_path = "../samples/sample_input.jpg"
 
-    print("Loading image...")
-    image = load_image(input_path)
+    print("Preprocessing image...")
+    processed_image = preprocess_image(image_path)
 
-    print("Converting to grayscale...")
-    gray = convert_to_grayscale(image)
+    cv2.imwrite("../samples/processed_output.jpg", processed_image)
 
-    print("Reducing noise...")
-    blurred = remove_noise(gray)
+    print("Running OCR...")
+    text, confidences = perform_ocr(processed_image)
 
-    print("Applying adaptive threshold...")
-    thresholded = apply_threshold(blurred)
+    print("\n--- Extracted Text ---")
+    print(text)
 
-    print("Correcting skew...")
-    deskewed = deskew(thresholded)
+    avg_conf = calculate_average_confidence(confidences)
 
-    print("Saving processed image...")
-    save_image(output_path, deskewed)
+    print("\nAverage OCR Confidence:", avg_conf, "%")
 
-    print("\nPreprocessing completed successfully.")
-    print(f"Processed image saved at: {output_path}")
+    print("\nWorking prototype executed successfully.")
 
 
 if __name__ == "__main__":
