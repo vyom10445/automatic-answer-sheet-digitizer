@@ -1,16 +1,11 @@
-"""
-OCR Engine Module
-Handles preprocessing + OCR + adaptive selection.
-"""
-
 import cv2
 import pytesseract
 from pytesseract import Output
 
 
-# -------------------------------
+
 # PREPROCESSING MODES
-# -------------------------------
+
 
 def preprocess_blur(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -37,9 +32,9 @@ def preprocess_adaptive(image):
     )
 
 
-# -------------------------------
+
 # OCR FUNCTION
-# -------------------------------
+
 
 def perform_ocr(image):
     data = pytesseract.image_to_data(
@@ -70,9 +65,8 @@ def perform_ocr(image):
     return text.strip(), round(avg_conf, 2)
 
 
-# -------------------------------
 # ADAPTIVE PIPELINE
-# -------------------------------
+
 
 def adaptive_ocr(image):
 

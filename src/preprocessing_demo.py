@@ -1,98 +1,29 @@
+"""
+CLI Prototype Version
+Runs adaptive OCR on a sample image.
+"""
+
 import cv2
-import numpy as np
-import pytesseract
-from pytesseract import Output
-
-
-def preprocess_mode_1(image):
-    # Grayscale + Gaussian Blur
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    return blur
-
-
-def preprocess_mode_2(image):
-    # Grayscale + Otsu threshold
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    _, thresh = cv2.threshold(
-        gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-    )
-    return thresh
-
-
-def preprocess_mode_3(image):
-    # Grayscale + Adaptive threshold
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    adaptive = cv2.adaptiveThreshold(
-        gray,
-        255,
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-        cv2.THRESH_BINARY,
-        11,
-        2
-    )
-    return adaptive
-
-
-def perform_ocr(image):
-    data = pytesseract.image_to_data(
-        image,
-        output_type=Output.DICT,
-        config='--oem 3 --psm 6'
-    )
-
-    text = ""
-    confidences = []
-
-    for i in range(len(data["text"])):
-        word = data["text"][i].strip()
-        conf = int(data["conf"][i])
-
-        if word != "" and conf > 0:
-            text += word + " "
-            confidences.append(conf)
-
-    if len(confidences) == 0:
-        return "", 0
-
-    avg_conf = sum(confidences) / len(confidences)
-    return text.strip(), round(avg_conf, 2)
+from ocr_engine import adaptive_ocr
 
 
 def main():
     image_path = "../samples/sample_input.jpg"
-    original = cv2.imread(image_path)
 
-    if original is None:
+    image = cv2.imread(image_path)
+
+    if image is None:
         print("Image not found.")
         return
 
-    print("Running Adaptive OCR Pipeline...\n")
+    print("Running Adaptive OCR...\n")
 
-    modes = {
-        "Mode 1 (Blur)": preprocess_mode_1(original),
-        "Mode 2 (Otsu)": preprocess_mode_2(original),
-        "Mode 3 (Adaptive)": preprocess_mode_3(original)
-    }
+    text, confidence, mode = adaptive_ocr(image)
 
-    best_conf = 0
-    best_text = ""
-    best_mode = ""
-
-    for mode_name, processed in modes.items():
-        text, conf = perform_ocr(processed)
-        print(f"{mode_name} Confidence: {conf}%")
-
-        if conf > best_conf:
-            best_conf = conf
-            best_text = text
-            best_mode = mode_name
-
-    print("\n--- BEST RESULT ---")
-    print("Selected:", best_mode)
-    print("Confidence:", best_conf, "%")
+    print("Selected Mode:", mode)
+    print("Average Confidence:", confidence, "%")
     print("\nExtracted Text:\n")
-    print(best_text)
+    print(text)
 
 
 if __name__ == "__main__":
