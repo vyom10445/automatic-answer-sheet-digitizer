@@ -154,6 +154,7 @@ This validates the need for more specialized handwriting models in future work.
 ## Author
 
 Vyom Chaturvedi  
+2427030058
 B.Tech Computer Science Engineering  
 Manipal University Jaipur
 
